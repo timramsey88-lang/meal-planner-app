@@ -9,20 +9,36 @@ if 'selected_recipes' not in st.session_state:
     st.session_state.selected_recipes = {}
 
 st.header("🔍 Search Recipes")
-query = st.text_input("Search anything (chicken, breakfast, vegetarian, tacos, pasta, flank steak, etc.)", "")
+
+# Quick category buttons
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    if st.button("Breakfast"):
+        st.session_state.temp_query = "breakfast"
+with col2:
+    if st.button("Lunch"):
+        st.session_state.temp_query = "lunch"
+with col3:
+    if st.button("Dinner"):
+        st.session_state.temp_query = "dinner"
+with col4:
+    if st.button("Beef"):
+        st.session_state.temp_query = "beef"
+
+query = st.text_input("Or type anything (chicken, flank steak, vegetarian, pasta, herbs...)", 
+                     value=st.session_state.get("temp_query", ""))
 
 num_recipes = st.slider("How many recipes to show?", 1, 12, 6)
 
 if st.button("Search Recipes") and query.strip():
     url = f"https://www.themealdb.com/api/json/v1/1/search.php?s={query.strip()}"
     data = requests.get(url).json()
-    meals = data.get("meals") or []
-    meals = meals[:num_recipes]
+    meals = data.get("meals", [])[:num_recipes]
     if meals:
         st.session_state.search_results = meals
         st.success(f"Found {len(meals)} recipes!")
     else:
-        st.error(f"No recipes found for '{query}'. Try broader terms like 'beef', 'chicken', 'breakfast', 'pasta', or 'steak'.")
+        st.error(f"No recipes found for '{query}'. Try 'beef', 'chicken', 'breakfast', 'pasta', or 'salad'.")
 
 price_mode = st.radio("Shopping preference", ["Cheapest (generic)", "Name Brand"], horizontal=True)
 
@@ -38,8 +54,7 @@ if 'search_results' in st.session_state:
             checked = st.checkbox(meal["strMeal"], value=meal_id in st.session_state.selected_recipes, key=meal_id)
             
             if checked and meal_id not in st.session_state.selected_recipes:
-                detail_url = f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={meal_id}"
-                detail = requests.get(detail_url).json().get("meals", [{}])[0]
+                detail = requests.get(f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={meal_id}").json()["meals"][0]
                 ingredients = []
                 for i in range(1, 21):
                     ing = detail.get(f"strIngredient{i}")
@@ -57,6 +72,7 @@ if 'search_results' in st.session_state:
             elif not checked and meal_id in st.session_state.selected_recipes:
                 del st.session_state.selected_recipes[meal_id]
 
+# Selected recipes section (same as before)
 if st.session_state.selected_recipes:
     st.header("📋 Selected Recipes")
     for meal_id, rec in list(st.session_state.selected_recipes.items()):
@@ -92,4 +108,4 @@ if st.session_state.selected_recipes:
         st.session_state.selected_recipes = {}
         st.rerun()
 
-st.caption("TheMealDB • Flexible search")
+st.caption("TheMealDB • Category buttons + flexible search")
