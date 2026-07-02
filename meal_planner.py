@@ -8,8 +8,8 @@ st.title("🍽️ Smart Meal Planner with Pictures & Walmart")
 if 'selected_recipes' not in st.session_state:
     st.session_state.selected_recipes = {}
 
-st.header("🔍 Search Any Recipe")
-query = st.text_input("Search anything (chicken, breakfast, vegetarian, pasta, herbs, etc.)", "")
+st.header("🔍 Search Recipes")
+query = st.text_input("Search anything (chicken, breakfast, vegetarian, tacos, pasta, etc.)", "")
 
 num_recipes = st.slider("How many recipes to show?", 1, 12, 6)
 
@@ -21,7 +21,7 @@ if st.button("Search Recipes") and query.strip():
         st.session_state.search_results = meals
         st.success(f"Found {len(meals)} recipes!")
     else:
-        st.warning("No recipes found. Try different words (e.g. 'beef', 'breakfast', 'salad').")
+        st.error(f"No recipes found for '{query}'. Try broader terms like 'beef', 'chicken', 'breakfast', 'pasta', or 'steak'.")
 
 price_mode = st.radio("Shopping preference", ["Cheapest (generic)", "Name Brand"], horizontal=True)
 
@@ -55,7 +55,6 @@ if 'search_results' in st.session_state:
             elif not checked and meal_id in st.session_state.selected_recipes:
                 del st.session_state.selected_recipes[meal_id]
 
-# Selected recipes
 if st.session_state.selected_recipes:
     st.header("📋 Selected Recipes")
     for meal_id, rec in list(st.session_state.selected_recipes.items()):
@@ -91,4 +90,4 @@ if st.session_state.selected_recipes:
         st.session_state.selected_recipes = {}
         st.rerun()
 
-st.caption("TheMealDB • Flexible search • Pictures • Instructions")
+st.caption("TheMealDB • Flexible search")
