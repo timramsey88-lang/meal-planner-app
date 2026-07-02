@@ -4,128 +4,99 @@ import requests
 from PIL import Image
 
 st.set_page_config(page_title="Meal Planner + Walmart", layout="wide")
-st.title("🍽️ Smart Meal Planner with Real Recipes + Walmart")
+st.title("🍽️ Smart Meal Planner with Recipes & Instructions")
 
-# ================== CONFIG ==================
 API_KEY = st.secrets.get("SPOONACULAR_API_KEY", "YOUR_API_KEY_HERE")
 
 if API_KEY == "YOUR_API_KEY_HERE":
-    st.warning("Please add your Spoonacular API Key in Settings → Secrets")
+    st.warning("Add your Spoonacular API Key in Settings → Secrets")
     API_KEY = st.text_input("Spoonacular API Key", type="password")
 
-# ================== SESSION STATE ==================
 if 'selected_recipes' not in st.session_state:
     st.session_state.selected_recipes = []
 
-# ================== UI ==================
-st.header("🔍 Search Real Recipes")
+st.header("🔍 Search Recipes")
 
-col1, col2 = st.columns([3, 1])
-with col1:
-    query = st.text_input("What do you want to cook?", "chicken breast tacos")
-with col2:
-    number = st.slider("Recipes to show", 3, 10, 6)
+query = st.text_input("Search for recipes", "chicken breast")
+number = st.slider("Number of results", 3, 10, 6)
 
-price_mode = st.radio(
-    "Shopping preference",
-    ["Cheapest (generic/store brand)", "Name Brand"],
-    horizontal=True
-)
+price_mode = st.radio("Shopping preference", ["Cheapest", "Name Brand"], horizontal=True)
 
 if st.button("Search Recipes"):
     if API_KEY and API_KEY != "YOUR_API_KEY_HERE":
         url = "https://api.spoonacular.com/recipes/complexSearch"
-        params = {
-            "apiKey": API_KEY,
-            "query": query,
-            "number": number,
-            "addRecipeInformation": True
-        }
+        params = {"apiKey": API_KEY, "query": query, "number": number, "addRecipeInformation": True}
         resp = requests.get(url, params=params)
         if resp.status_code == 200:
             st.session_state.recipes = resp.json().get("results", [])
-            st.success(f"Found {len(st.session_state.recipes)} recipes!")
         else:
-            st.error("Error fetching recipes. Check your API key.")
+            st.error("API error - check key")
     else:
-        st.error("Please enter a valid Spoonacular API Key")
+        st.error("Please add API key")
 
-# ================== DISPLAY RECIPES ==================
-if 'recipes' in st.session_state and st.session_state.recipes:
-    st.subheader("Select Recipes (click to add with quantities)")
-
+if 'recipes' in st.session_state:
+    st.subheader("Select Recipes")
     for recipe in st.session_state.recipes:
-        col_img, col_info = st.columns([1, 4])
-        with col_img:
+        col1, col2 = st.columns([1,4])
+        with col1:
             if recipe.get("image"):
-                st.image(recipe["image"], width=90)
-
-        with col_info:
+                st.image(recipe["image"], width=100)
+        with col2:
             if st.checkbox(recipe["title"], key=recipe["id"]):
-                # Fetch full recipe details with quantities
+                # Get full details
                 info_url = f"https://api.spoonacular.com/recipes/{recipe['id']}/information"
-                info_resp = requests.get(info_url, params={"apiKey": API_KEY})
+                info = requests.get(info_url, params={"apiKey": API_KEY}).json()
                 
-                if info_resp.status_code == 200:
-                    info = info_resp.json()
-                    ingredients = []
-                    for ing in info.get("extendedIngredients", []):
-                        amount = ing.get("amount", 0)
-                        unit = ing.get("unit", "")
-                        name = ing.get("name", "")
-                        ingredients.append({
-                            "amount": amount,
-                            "unit": unit,
-                            "name": name,
-                            "original": ing.get("original", f"{amount} {unit} {name}")
-                        })
-                    
-                    st.session_state.selected_recipes.append({
-                        "title": recipe["title"],
-                        "ingredients": ingredients,
-                        "price_mode": price_mode
+                ingredients = []
+                for ing in info.get("extendedIngredients", []):
+                    ingredients.append({
+                        "amount": ing.get("amount", 0),
+                        "unit": ing.get("unit", ""),
+                        "name": ing.get("name", "")
                     })
-                    st.success(f"Added: {recipe['title']}")
+                
+                st.session_state.selected_recipes.append({
+                    "title": recipe["title"],
+                    "ingredients": ingredients,
+                    "instructions": info.get("instructions", "No instructions available."),
+                    "sourceUrl": recipe.get("sourceUrl", "#")
+                })
+                st.success(f"Added {recipe['title']}")
 
-# ================== SHOPPING LIST ==================
+# Show selected recipes with instructions
 if st.session_state.selected_recipes:
-    st.header("🛒 Your Shopping List (with quantities)")
-
-    # Combine ingredients
-    combined = {}
+    st.header("📋 Selected Recipes & Instructions")
+    
+    for i, rec in enumerate(st.session_state.selected_recipes):
+        with st.expander(f"🍲 {rec['title']}", expanded=True):
+            st.markdown(f"**Source:** [View Original Recipe]({rec.get('sourceUrl', '#')})")
+            
+            st.subheader("Ingredients")
+            for ing in rec["ingredients"]:
+                st.write(f"• {ing['amount']} {ing['unit']} {ing['name']}")
+            
+            st.subheader("Instructions")
+            st.markdown(rec["instructions"])
+    
+    # Shopping list
+    st.header("🛒 Shopping List")
+    shopping = {}
     for rec in st.session_state.selected_recipes:
         for ing in rec["ingredients"]:
             key = ing["name"].lower()
-            if key not in combined:
-                combined[key] = {"amount": 0, "unit": ing["unit"], "originals": []}
-            combined[key]["amount"] += ing["amount"]
-            combined[key]["originals"].append(ing["original"])
-
-    # Display list
-    shopping_data = []
-    for name, data in combined.items():
-        shopping_data.append({
-            "Item": name.title(),
-            "Quantity": f"{round(data['amount'], 1)} {data['unit']}",
-            "Details": ", ".join(data["originals"][:2])  # show first couple originals
-        })
-
-    df = pd.DataFrame(shopping_data)
+            shopping[key] = shopping.get(key, 0) + ing["amount"]
+    
+    df = pd.DataFrame([{"Item": k.title(), "Approx Quantity": v} for k,v in shopping.items()])
     st.dataframe(df, use_container_width=True)
 
-    # Walmart button with preference
     if st.button("🛍️ Search Walmart"):
-        query_items = "+".join(combined.keys())
-        if "Cheapest" in price_mode:
-            query_items += "+generic+store+brand"
-        else:
-            query_items += "+name+brand"
-        
-        walmart_url = f"https://www.walmart.com/search?q={query_items}"
-        st.markdown(f"[➡️ Open Walmart Search ({price_mode})]({walmart_url})")
+        items = "+".join(shopping.keys())
+        mode = "generic" if price_mode == "Cheapest" else "brand"
+        url = f"https://www.walmart.com/search?q={items}+{mode}"
+        st.markdown(f"[Open Walmart →]({url})")
 
-    if st.button("Clear All Recipes"):
+    if st.button("Clear Everything"):
         st.session_state.selected_recipes = []
         st.rerun()
 
-st.caption("Powered by Spoonacular • Your recipes, your quantities, your budget preference")
+st.caption("Recipe data from Spoonacular • Your app, your rules")
