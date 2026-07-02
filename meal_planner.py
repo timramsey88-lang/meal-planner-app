@@ -55,14 +55,13 @@ if 'search_results' in st.session_state:
             elif not checked and meal_id in st.session_state.selected_recipes:
                 del st.session_state.selected_recipes[meal_id]
 
-# Selected recipes
 if st.session_state.selected_recipes:
     st.header("📋 Selected Recipes")
     for meal_id, rec in list(st.session_state.selected_recipes.items()):
         with st.expander(f"🍲 {rec['title']}", expanded=True):
             if rec.get("image"):
                 st.image(rec["image"], width=300)
-            st.markdown(f"[View Full Recipe]({rec['sourceUrl']})")
+            st.markdown(f"[View Full Recipe Online]({rec['sourceUrl']})")
             
             st.subheader("Ingredients")
             for ing in rec["ingredients"]:
@@ -91,4 +90,4 @@ if st.session_state.selected_recipes:
         st.session_state.selected_recipes = {}
         st.rerun()
 
-st.caption("TheMealDB • Flexible search • Pictures • Instructions")
+st.caption("TheMealDB • Recipes pulled into the app")
