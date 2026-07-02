@@ -9,14 +9,15 @@ if 'selected_recipes' not in st.session_state:
     st.session_state.selected_recipes = {}
 
 st.header("🔍 Search Recipes")
-query = st.text_input("Search anything (chicken, breakfast, vegetarian, tacos, pasta, etc.)", "")
+query = st.text_input("Search anything (chicken, breakfast, vegetarian, tacos, pasta, flank steak, etc.)", "")
 
 num_recipes = st.slider("How many recipes to show?", 1, 12, 6)
 
 if st.button("Search Recipes") and query.strip():
     url = f"https://www.themealdb.com/api/json/v1/1/search.php?s={query.strip()}"
     data = requests.get(url).json()
-    meals = data.get("meals", [])[:num_recipes]
+    meals = data.get("meals") or []
+    meals = meals[:num_recipes]
     if meals:
         st.session_state.search_results = meals
         st.success(f"Found {len(meals)} recipes!")
@@ -37,7 +38,8 @@ if 'search_results' in st.session_state:
             checked = st.checkbox(meal["strMeal"], value=meal_id in st.session_state.selected_recipes, key=meal_id)
             
             if checked and meal_id not in st.session_state.selected_recipes:
-                detail = requests.get(f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={meal_id}").json()["meals"][0]
+                detail_url = f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={meal_id}"
+                detail = requests.get(detail_url).json().get("meals", [{}])[0]
                 ingredients = []
                 for i in range(1, 21):
                     ing = detail.get(f"strIngredient{i}")
