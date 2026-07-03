@@ -90,5 +90,58 @@ if st.session_state.selected_recipes:
     if st.button("Clear All"):
         st.session_state.selected_recipes = {}
         st.rerun()
+import requests
+import streamlit as st
 
+# --- Cuisine Recipe Search ---
+st.header("🌍 Search Recipes by Food Culture")
+
+# Common cuisines (you can expand this or fetch dynamically)
+cuisines = [
+    "American", "British", "Canadian", "Chinese", "Dutch", "Egyptian",
+    "French", "Greek", "Indian", "Italian", "Japanese", "Korean",
+    "Mexican", "Polish", "Portuguese", "Russian", "Spanish", "Thai", "Vietnamese"
+    # Add "Filipino" or others if they appear in searches
+]
+
+selected_cuisine = st.selectbox("Choose a Food Culture", sorted(cuisines))
+
+if st.button("🔍 Search Recipes"):
+    with st.spinner("Fetching recipes..."):
+        url = f"https://www.themealdb.com/api/json/v1/1/filter.php?a={selected_cuisine}"
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data = response.json()
+            meals = data.get("meals", [])
+            
+            if meals:
+                st.success(f"Found {len(meals)} recipes from {selected_cuisine} cuisine!")
+                
+                # Display in columns for better UX
+                cols = st.columns(3)
+                for idx, meal in enumerate(meals):
+                    with cols[idx % 3]:
+                        st.image(meal["strMealThumb"], use_column_width=True)
+                        st.subheader(meal["strMeal"])
+                        
+                        # Button to show full details
+                        if st.button(f"View Recipe", key=meal["idMeal"]):
+                            detail_url = f"https://www.themealdb.com/api/json/v1/1/lookup.php?i={meal['idMeal']}"
+                            detail_resp = requests.get(detail_url).json()
+                            recipe = detail_resp["meals"][0]
+                            
+                            st.write("**Instructions:**")
+                            st.write(recipe["strInstructions"])
+                            
+                            st.write("**Ingredients:**")
+                            for i in range(1, 21):
+                                ingredient = recipe.get(f"strIngredient{i}")
+                                measure = recipe.get(f"strMeasure{i}")
+                                if ingredient:
+                                    st.write(f"- {measure} {ingredient}")
+            else:
+                st.warning("No recipes found for this cuisine yet. Try another!")
+        else:
+            st.error("Error fetching recipes. Please try again.")
 st.caption("TheMealDB • Flexible search • Pictures • Instructions")
